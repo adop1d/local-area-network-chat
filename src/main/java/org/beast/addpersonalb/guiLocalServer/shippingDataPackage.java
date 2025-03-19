@@ -4,44 +4,35 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 public class shippingDataPackage implements Serializable {
-    private static String userNick,ip, message;
+    private String userNick,ip, message;
     private ArrayList<String> Ips;
     private String clientId;
 
-    public static String getUserNick() {
-        return userNick;
-    }
-
-    public static void setUserNick(String userNick) {
-        shippingDataPackage.userNick = userNick;
-    }
-
-    public String getClientId() {
-        return clientId;
-    }
-
-    public void setClientId(String clientId) {
-        this.clientId = clientId;
-    }
-
-    public ArrayList<String> getIps() {return Ips;}
-
-    public void setIps(ArrayList<String> ips) {Ips = ips;}
     public shippingDataPackage() {
-        this.Ips = new ArrayList<>(); // Initialize to empty ArrayList
+        this.Ips = new ArrayList<>(); // Inicializa lista vacía
+    }
+    public shippingDataPackage(String userNick, String ip, String message) {
+        this.userNick = userNick;
+        this.ip = ip;
+        this.message = message;
+        this.Ips = new ArrayList<>(); // Evita NullPointerException
     }
 
-    public String getNick() {return userNick;}
+    public String getUserNick() { return userNick; }
+    public void setUserNick(String userNick) { this.userNick = userNick; }
 
-    public static void setNick(String nick) {userNick = nick;}
+    public String getClientId() { return clientId; }
+    public void setClientId(String clientId) { this.clientId = clientId; }
 
-    public String getIp() {return ip;}
+    public ArrayList<String> getIps() { return Ips; }
+    public void setIps(ArrayList<String> ips) { this.Ips = ips; }
 
-    public void setIp(String ip) {
-        shippingDataPackage.ip = ip;}
+    public String getNick() { return userNick; }
+    public void setNick(String nick) { this.userNick = nick; }
 
-    public String getMessage() {return message;}
+    public String getIp() { return ip; }
+    public void setIp(String ip) { this.ip = ip; }
 
-    public void setMessage(String message) {
-        shippingDataPackage.message = message;}
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
 }

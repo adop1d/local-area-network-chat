@@ -1,9 +1,7 @@
 package org.beast.addpersonalb.guiLocalServer;
 
-import org.beast.addpersonalb.utils.actioMur;
-
-import javax.swing.*;
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
@@ -14,6 +12,18 @@ import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+
+import org.beast.addpersonalb.utils.actioMur;
 
 public class chatClient extends JFrame {
 	final String userNick;
@@ -49,7 +59,7 @@ class panelFrameClient extends JPanel implements Runnable{
 		ip.setBackground(new Color(90,90,90));
 		ip.setForeground(new Color(255,255,255));
 		add(ip);ip.setBounds(163,4,100,28);
-	
+
 		JLabel text =new JLabel("[ip]:");
 		JLabel text2 =new JLabel("[user]:");
 		add(text);
@@ -81,32 +91,30 @@ class panelFrameClient extends JPanel implements Runnable{
 
 	public void run() {
 			try (ServerSocket clientServer = new ServerSocket(9090)) {
-				Socket client;
-				shippingDataPackage receivedPackage;
 				while (true) {
-					client = clientServer.accept();
-
-                    ObjectInputStream entryFlow = new ObjectInputStream(client.getInputStream());
-                    receivedPackage = (shippingDataPackage)entryFlow.readObject();
+					try(Socket client = clientServer.accept();
+						ObjectInputStream entryFlow = new ObjectInputStream(client.getInputStream())) {
+							shippingDataPackage receivedPackage = (shippingDataPackage)entryFlow.readObject();
 
                     if (!receivedPackage.getMessage().equals("online")) {
-                        shippingDataPackage finalReceivedPackage = receivedPackage;
-                        SwingUtilities.invokeLater(() -> chatField.append("\n[" + finalReceivedPackage.getNick() + "]:" + finalReceivedPackage.getMessage()));
-                    }
-                    if (receivedPackage.getMessage().equals("online")) {
-                        ArrayList<String> IpsMenu = receivedPackage.getIps();
-                        SwingUtilities.invokeLater(() -> {
-                            ip.removeAllItems();
-                            for (String z : IpsMenu) ip.addItem(z);
-                        });
+											SwingUtilities.invokeLater(() ->
+													chatField.append("\n[" + receivedPackage.getNick() + "]:" + receivedPackage.getMessage()));
+									}else {
+                    ArrayList<String> IpsMenu = receivedPackage.getIps();
+                    SwingUtilities.invokeLater(() -> {
+                        ip.removeAllItems();
+                        for (String z : IpsMenu) ip.addItem(z);
+                    });
                     }
                 }
+				}
         } catch (IOException e) {
-			System.out.println("Error: " + e.getMessage());
-			// Optionally display an error dialog to the user
-		} catch (ClassNotFoundException e) {
-			System.out.println("Class not found: " + e.getMessage());
-		}
+						System.out.println("Error: " + e.getMessage());
+						// Optionally display an error dialog to the user
+				} catch (ClassNotFoundException e) {
+						System.out.println("Error: " + e.getMessage());
+						// Optionally display an error dialog to the user
+				}
 	}
 	private class sendTxt extends Component implements ActionListener {
 		public sendTxt(panelFrameClient panel) {
@@ -119,7 +127,7 @@ class panelFrameClient extends JPanel implements Runnable{
 					Socket ticketDataEntry = new Socket(selectedIp, 9999);
 					shippingDataPackage dataToSend = new shippingDataPackage();
 
-					shippingDataPackage.setNick(userNick);
+					dataToSend.setNick(userNick);
 					dataToSend.setIp(selectedIp);
 					dataToSend.setMessage(field1.getText());
 					dataToSend.setClientId(clientId);
@@ -137,7 +145,7 @@ class panelFrameClient extends JPanel implements Runnable{
 			}else {
 				JOptionPane.showMessageDialog(null, "please, select an IP before *-*");
 			}
-			panel.field1.setText("");
+			field1.setText("");
 		}
 		private final panelFrameClient panel;
 		private String clientId;
