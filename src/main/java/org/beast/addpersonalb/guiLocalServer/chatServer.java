@@ -14,14 +14,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
+import javax.swing.WindowConstants;
 
 public class chatServer {
 	public static void main(String[] args) {
 		serverFrame server = new serverFrame();
-		server.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		server.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 	}
 }
-
 class serverFrame extends JFrame implements Runnable {
 	public serverFrame() {
 		setTitle("servidor");
@@ -42,7 +42,7 @@ class serverFrame extends JFrame implements Runnable {
 
 	public void run() {
 		try (ServerSocket serverSocket = new ServerSocket(5065)) {
-			System.out.println("servidor iniciado en el puerto 9999...");
+			System.out.println("server started on port: " + serverSocket.getLocalPort());
 
 			while (true) {
 				Socket clientSocket = serverSocket.accept();
@@ -50,20 +50,20 @@ class serverFrame extends JFrame implements Runnable {
 				String clientIp = clientAddress.getHostAddress();
 				String clientId = UUID.randomUUID().toString();
 
-				System.out.println("cliente conectado: " + clientIp);
+				System.out.println(clientIp+" has connected.");
 
 				// Recibir paquete de datos
 				try (ObjectInputStream dataIn = new ObjectInputStream(clientSocket.getInputStream())){
 				shippingDataPackage receivedPackage = (shippingDataPackage) dataIn.readObject();
-			
+
 				String senderNick = receivedPackage.getNick();
 				String message = receivedPackage.getMessage();
-				System.out.println("📩 Mensaje recibido de [" + senderNick + "]: " + message);
+				System.out.println("message received from [" + senderNick + "]: " + message);
 
 				// Guardar cliente si es nuevo
 				if (!connectedClients.containsKey(clientIp)) {
 					connectedClients.put(clientIp, clientSocket);
-					System.out.println("Cliente agregado a la lista: " + clientIp);
+					System.out.println("client added to the list: " + clientIp);
 
 					// Enviar lista de clientes conectados
 					shippingDataPackage onlinePackage = new shippingDataPackage();
@@ -96,9 +96,9 @@ class serverFrame extends JFrame implements Runnable {
 					ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
 					out.writeObject(packageToSend);
 					out.flush();
-					System.out.println("📤 Mensaje enviado a " + entry.getKey());
+					System.out.println("message sent to " + entry.getKey());
 				} catch (IOException e) {
-					System.out.println("⚠️ Error al enviar el mensaje a " + entry.getKey() + ": " + e.getMessage());
+					System.out.println("error sending message to " + entry.getKey() + ": " + e.getMessage());
 					disconnectedClients.add(entry.getKey()); // Marcar clientes desconectados
 				}
 			}
@@ -107,7 +107,7 @@ class serverFrame extends JFrame implements Runnable {
 		// Eliminar clientes desconectados
 		for (String client : disconnectedClients) {
 			connectedClients.remove(client);
-			System.out.println("❌ Cliente desconectado: " + client);
+			System.out.println(client+ "has disconnected"); ;
 		}
 	}
 }
