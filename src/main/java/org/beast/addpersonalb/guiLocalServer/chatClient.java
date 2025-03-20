@@ -107,14 +107,18 @@ class panelFrameClient extends JPanel implements Runnable {
 					shippingDataPackage receivedPackage = (shippingDataPackage) entryFlow.readObject();
 
 					if (receivedPackage.getMessage().equals("online")) {
-						HashMap<String, String> userMap = receivedPackage.getUserMap(); // Recibir {nick → IP}
+						HashMap<String, String> receivedUserMap = receivedPackage.getUserMap();
 
-						if (userMap != null && !userMap.isEmpty()) {
+						if (receivedUserMap != null && !receivedUserMap.isEmpty()) {
+							this.userMap.clear();
+							this.userMap.putAll(receivedUserMap);
+
 							SwingUtilities.invokeLater(() -> {
 								ip.removeAllItems();
-								for (String user : userMap.keySet()) { // Agregar nombres
+								for (String user : userMap.keySet()) {
 									ip.addItem(user);
 								}
+								System.out.println("Updated user list: " + userMap);
 							});
 						}
 					}
