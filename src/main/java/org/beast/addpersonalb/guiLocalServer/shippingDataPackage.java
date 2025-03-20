@@ -2,11 +2,14 @@ package org.beast.addpersonalb.guiLocalServer;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 public class shippingDataPackage implements Serializable {
     private String userNick,ip, message;
     private ArrayList<String> Ips;
     private String clientId;
+    private HashMap<String, String> userMap;
+    
 
     public shippingDataPackage() {
         this.Ips = new ArrayList<>(); // Inicializa lista vacía
@@ -35,4 +38,11 @@ public class shippingDataPackage implements Serializable {
 
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
+    public HashMap<String, String> getUserMap() {
+        return userMap;
+    }
+
+    public void setUserMap(HashMap<String, String> userMap) {
+        this.userMap = userMap;
+    }
 }
