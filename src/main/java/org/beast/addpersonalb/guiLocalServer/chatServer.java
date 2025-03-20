@@ -33,81 +33,90 @@ class serverFrame extends JFrame implements Runnable {
 		add(panel1);
 
 		setVisible(true);
-		Thread useSrvrThread = new Thread(this);
-		useSrvrThread.start();
+		Thread serverThread = new Thread(this);
+		serverThread.start();
 	}
 
 	private final ConcurrentHashMap<String, Socket> connectedClients = new ConcurrentHashMap<>();
 	private final JTextArea textAr;
 
 	public void run() {
-		try (ServerSocket serverSocket = new ServerSocket(5065)) {
-			System.out.println("server started on port: " + serverSocket.getLocalPort());
+			try (ServerSocket serverSocket = new ServerSocket(5065)) {
+					System.out.println("server started on port: " + serverSocket.getLocalPort());
 
-			while (true) {
-				Socket clientSocket = serverSocket.accept();
-				InetAddress clientAddress = clientSocket.getInetAddress();
-				String clientIp = clientAddress.getHostAddress();
-				String clientId = UUID.randomUUID().toString();
+					while (true) {
+							Socket clientSocket = serverSocket.accept();
+							InetAddress clientAddress = clientSocket.getInetAddress();
+							String clientIp = clientAddress.getHostAddress();
+							String clientId = UUID.randomUUID().toString();
 
-				System.out.println(clientIp+" has connected.");
+							System.out.println(clientIp + " has connected.");
 
-				// Recibir paquete de datos
-				try (ObjectInputStream dataIn = new ObjectInputStream(clientSocket.getInputStream())){
-				shippingDataPackage receivedPackage = (shippingDataPackage) dataIn.readObject();
-
-				String senderNick = receivedPackage.getNick();
-				String message = receivedPackage.getMessage();
-				System.out.println("message received from [" + senderNick + "]: " + message);
-
-				// Guardar cliente si es nuevo
-				if (!connectedClients.containsKey(clientIp)) {
-					connectedClients.put(clientIp, clientSocket);
-					System.out.println("client added to the list: " + clientIp);
-
-					// Enviar lista de clientes conectados
-					shippingDataPackage onlinePackage = new shippingDataPackage();
-					onlinePackage.setMessage("online");
-					onlinePackage.setIps(new ArrayList<>(connectedClients.keySet()));
-					broadcastMessage(onlinePackage, clientSocket);
-				}
-
-				// Si es un mensaje normal, retransmitir
-				if (message != null && !message.equals("online")) {
-					textAr.append("\n[" + senderNick + "]: " + message);
-					broadcastMessage(receivedPackage, clientSocket);
-					clientSocket.close();
-				}
+							// Crear un hilo para manejar este cliente
+							new Thread(() -> handleClient(clientSocket, clientId)).start();
+					}
+			} catch (IOException e) {
+					System.out.println("server error: " + e.getMessage());
 			}
-		}
-		} catch (IOException | ClassNotFoundException e) {
-			System.out.println("server error: " + e.getMessage());
-		}
+	}
+
+	private void handleClient(Socket clientSocket, String clientId) {
+			try {
+					ObjectInputStream dataIn = new ObjectInputStream(clientSocket.getInputStream());
+
+					while (true) {
+							shippingDataPackage receivedPackage = (shippingDataPackage) dataIn.readObject();
+							String senderNick = receivedPackage.getNick();
+							String message = receivedPackage.getMessage();
+							System.out.println("message received from [" + senderNick + "]: " + message);
+
+							// Guardar cliente si es nuevo
+							if (!connectedClients.containsValue(clientSocket)) {
+									connectedClients.put(clientId, clientSocket);
+									System.out.println("client added to the list: " + clientId);
+
+									// Enviar lista de clientes conectados
+									shippingDataPackage onlinePackage = new shippingDataPackage();
+									onlinePackage.setMessage("online");
+									onlinePackage.setIps(new ArrayList<>(connectedClients.keySet()));
+									broadcastMessage(onlinePackage, clientSocket);
+							}
+
+							// Si es un mensaje normal, retransmitir
+							if (message != null && !message.equals("online")) {
+									textAr.append("\n[" + senderNick + "]: " + message);
+									broadcastMessage(receivedPackage, clientSocket);
+							}
+					}
+			} catch (IOException | ClassNotFoundException e) {
+					System.out.println("Client disconnected: " + clientId);
+					connectedClients.remove(clientId);
+			}
 	}
 
 	private void broadcastMessage(shippingDataPackage packageToSend, Socket senderSocket) {
-		ArrayList<String> disconnectedClients = new ArrayList<>();
+			ArrayList<String> disconnectedClients = new ArrayList<>();
 
-		for (Map.Entry<String, Socket> entry : connectedClients.entrySet()) {
-			Socket clientSocket = entry.getValue();
+			for (Map.Entry<String, Socket> entry : connectedClients.entrySet()) {
+					Socket clientSocket = entry.getValue();
 
-			if (!clientSocket.equals(senderSocket)) {
-				try {
-					ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
-					out.writeObject(packageToSend);
-					out.flush();
-					System.out.println("message sent to " + entry.getKey());
-				} catch (IOException e) {
-					System.out.println("error sending message to " + entry.getKey() + ": " + e.getMessage());
-					disconnectedClients.add(entry.getKey()); // Marcar clientes desconectados
-				}
+					if (!clientSocket.equals(senderSocket)) {
+							try {
+									ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
+									out.writeObject(packageToSend);
+									out.flush();
+									System.out.println("message sent to " + entry.getKey());
+							} catch (IOException e) {
+									System.out.println("error sending message to " + entry.getKey() + ": " + e.getMessage());
+									disconnectedClients.add(entry.getKey()); // Marcar clientes desconectados
+							}
+					}
 			}
-		}
 
-		// Eliminar clientes desconectados
-		for (String client : disconnectedClients) {
-			connectedClients.remove(client);
-			System.out.println(client+ "has disconnected"); ;
-		}
+			// Eliminar clientes desconectados
+			for (String client : disconnectedClients) {
+					connectedClients.remove(client);
+					System.out.println(client + " has disconnected");
+			}
 	}
 }

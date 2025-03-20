@@ -9,7 +9,6 @@ import java.awt.event.KeyListener;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 
@@ -90,32 +89,35 @@ class panelFrameClient extends JPanel implements Runnable{
 	}
 
 	public void run() {
-			try (ServerSocket clientServer = new ServerSocket(9090)) {
-				while (true) {
-					try(Socket client = clientServer.accept();
-						ObjectInputStream entryFlow = new ObjectInputStream(client.getInputStream())) {
-							shippingDataPackage receivedPackage = (shippingDataPackage)entryFlow.readObject();
+    try {
+        Socket clientSocket = new Socket("localhost", 5065); // Conéctate al servidor
 
-                    if (!receivedPackage.getMessage().equals("online")) {
-											SwingUtilities.invokeLater(() ->
-													chatField.append("\n[" + receivedPackage.getNick() + "]:" + receivedPackage.getMessage()));
-									}else {
+        ObjectInputStream entryFlow = new ObjectInputStream(clientSocket.getInputStream());
+
+        while (true) {
+            try {
+                shippingDataPackage receivedPackage = (shippingDataPackage) entryFlow.readObject();
+
+                if (!receivedPackage.getMessage().equals("online")) {
+                    SwingUtilities.invokeLater(() ->
+                        chatField.append("\n[" + receivedPackage.getNick() + "]: " + receivedPackage.getMessage()));
+                } else {
                     ArrayList<String> IpsMenu = receivedPackage.getIps();
                     SwingUtilities.invokeLater(() -> {
                         ip.removeAllItems();
                         for (String z : IpsMenu) ip.addItem(z);
                     });
-                    }
                 }
-				}
-        } catch (IOException e) {
-						System.out.println("Error: " + e.getMessage());
-						// Optionally display an error dialog to the user
-				} catch (ClassNotFoundException e) {
-						System.out.println("Error: " + e.getMessage());
-						// Optionally display an error dialog to the user
-				}
-	}private class sendTxt extends Component implements ActionListener {
+            } catch (ClassNotFoundException e) {
+                System.out.println("Error: " + e.getMessage());
+            }
+        }
+    } catch (IOException e) {
+        System.out.println("Error: " + e.getMessage());
+    }
+}
+
+	private class sendTxt extends Component implements ActionListener {
     public sendTxt(panelFrameClient panel) {
         this.panel = panel;
     }
