@@ -123,8 +123,11 @@ private void sendClientListToAll() {
 	onlinePackage.setMessage("online");
 	onlinePackage.setUserMap(new HashMap<>(clientList));  // Enviar mapa {nick → IP}
 
+	System.out.println("Sending user list: " + clientList);
+
 	broadcastMessage(onlinePackage, null);  // Enviar a todos
 }
+
 
 	private void broadcastMessage(shippingDataPackage packageToSend, Socket senderSocket) {
 			ArrayList<String> disconnectedClients = new ArrayList<>();
