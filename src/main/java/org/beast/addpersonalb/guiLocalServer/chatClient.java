@@ -115,40 +115,42 @@ class panelFrameClient extends JPanel implements Runnable{
 						System.out.println("Error: " + e.getMessage());
 						// Optionally display an error dialog to the user
 				}
-	}
-	private class sendTxt extends Component implements ActionListener {
-		public sendTxt(panelFrameClient panel) {
-			this.panel = panel;
-		}
-		public void actionPerformed(ActionEvent e) {
-			String selectedIp = (String) panel.ip.getSelectedItem();
-			if (selectedIp != null) {
-				try {
-					Socket ticketDataEntry = new Socket(selectedIp, 9999);
-					shippingDataPackage dataToSend = new shippingDataPackage();
+	}private class sendTxt extends Component implements ActionListener {
+    public sendTxt(panelFrameClient panel) {
+        this.panel = panel;
+    }
 
-					dataToSend.setNick(userNick);
-					dataToSend.setIp(selectedIp);
-					dataToSend.setMessage(field1.getText());
-					dataToSend.setClientId(clientId);
+    public void actionPerformed(ActionEvent e) {
+        String selectedIp = (String) panel.ip.getSelectedItem();
+        if (selectedIp != null) {
+            try {
+                System.out.println("Trying to connect to " + selectedIp);
 
-					ObjectOutputStream dataPackage = new ObjectOutputStream(ticketDataEntry.getOutputStream());
-					dataPackage.writeObject(dataToSend);
-					dataPackage.flush(); // Ensure data is sent before closing the socket
-					chatField.append("\n[" + userNick + "]:" + field1.getText());
+                Socket ticketDataEntry = new Socket(selectedIp, 5065);
+                ObjectOutputStream dataPackage = new ObjectOutputStream(ticketDataEntry.getOutputStream());
 
-					ticketDataEntry.close();
+                shippingDataPackage dataToSend = new shippingDataPackage();
+                dataToSend.setNick(userNick);
+                dataToSend.setIp(selectedIp);
+                dataToSend.setMessage(field1.getText());
 
-				} catch (IOException ex) {
-					JOptionPane.showMessageDialog(null, "connection error");
-                }
-			}else {
-				JOptionPane.showMessageDialog(null, "please, select an IP before *-*");
-			}
-			field1.setText("");
-		}
+                dataPackage.writeObject(dataToSend);
+                dataPackage.flush();
+
+                System.out.println("sending message: [" + userNick + "]: " + field1.getText());
+
+                chatField.append("\n[" + userNick + "]:" + field1.getText());
+                ticketDataEntry.close();
+            } catch (IOException ex) {
+                System.out.println("error connecting to " + selectedIp + ": " + ex.getMessage());
+                JOptionPane.showMessageDialog(null, "error connecting to " + selectedIp);
+            }
+        } else {
+            JOptionPane.showMessageDialog(null, "No IP selected");
+        }
+        field1.setText("");
+    }
 		private final panelFrameClient panel;
-		private String clientId;
 
 	}
 	private class enterKeyListener implements KeyListener {

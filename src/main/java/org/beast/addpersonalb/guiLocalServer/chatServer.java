@@ -17,10 +17,11 @@ import javax.swing.JTextArea;
 
 public class chatServer {
 	public static void main(String[] args) {
-		serverFrame server=new serverFrame();
+		serverFrame server = new serverFrame();
 		server.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-	}	
+	}
 }
+
 class serverFrame extends JFrame implements Runnable {
 	public serverFrame() {
 		setTitle("servidor");
@@ -40,60 +41,73 @@ class serverFrame extends JFrame implements Runnable {
 	private final JTextArea textAr;
 
 	public void run() {
-		try (ServerSocket serverSocket = new ServerSocket(9999)) {
+		try (ServerSocket serverSocket = new ServerSocket(5065)) {
+			System.out.println("servidor iniciado en el puerto 9999...");
+
 			while (true) {
 				Socket clientSocket = serverSocket.accept();
 				InetAddress clientAddress = clientSocket.getInetAddress();
 				String clientIp = clientAddress.getHostAddress();
 				String clientId = UUID.randomUUID().toString();
 
+				System.out.println("cliente conectado: " + clientIp);
 
-				ObjectInputStream dataIn = new ObjectInputStream(clientSocket.getInputStream());
+				// Recibir paquete de datos
+				try (ObjectInputStream dataIn = new ObjectInputStream(clientSocket.getInputStream())){
 				shippingDataPackage receivedPackage = (shippingDataPackage) dataIn.readObject();
-				String senderIp = receivedPackage.getIp();
+			
+				String senderNick = receivedPackage.getNick();
 				String message = receivedPackage.getMessage();
-				receivedPackage.setClientId(clientId);
+				System.out.println("📩 Mensaje recibido de [" + senderNick + "]: " + message);
 
-
-				connectedClients.put(clientIp, clientSocket);
-				System.out.println("[" + clientIp + "] online");
-
-				// manejo de una nueva conexion
+				// Guardar cliente si es nuevo
 				if (!connectedClients.containsKey(clientIp)) {
 					connectedClients.put(clientIp, clientSocket);
-					System.out.println("[" + clientIp + "] online");
+					System.out.println("Cliente agregado a la lista: " + clientIp);
 
-					// Transmitir a los clientes conectados quien se ha conectado
-
+					// Enviar lista de clientes conectados
 					shippingDataPackage onlinePackage = new shippingDataPackage();
-					onlinePackage.setMessage(" online");
-					onlinePackage.getIps().add(clientIp);
+					onlinePackage.setMessage("online");
 					onlinePackage.setIps(new ArrayList<>(connectedClients.keySet()));
-					broadcastMessage(onlinePackage, clientSocket, clientId);
+					broadcastMessage(onlinePackage, clientSocket);
 				}
-				if (receivedPackage.getMessage() != null && !receivedPackage.getMessage().equals(" online")) {
-					textAr.append("\n[" + receivedPackage.getNick() + "]:" + message);
-					broadcastMessage(receivedPackage,clientSocket,clientId);
-				}
-				else {
-					textAr.append("\n[" + receivedPackage.getNick() + "]:");
+
+				// Si es un mensaje normal, retransmitir
+				if (message != null && !message.equals("online")) {
+					textAr.append("\n[" + senderNick + "]: " + message);
+					broadcastMessage(receivedPackage, clientSocket);
+					clientSocket.close();
 				}
 			}
+		}
 		} catch (IOException | ClassNotFoundException e) {
-			System.out.println(e.getMessage());
+			System.out.println("server error: " + e.getMessage());
 		}
 	}
-	private void broadcastMessage(shippingDataPackage packageToSend, Socket senderSocket, String clientId) throws IOException {
+
+	private void broadcastMessage(shippingDataPackage packageToSend, Socket senderSocket) {
+		ArrayList<String> disconnectedClients = new ArrayList<>();
+
 		for (Map.Entry<String, Socket> entry : connectedClients.entrySet()) {
-			String currentClientId = entry.getKey();
 			Socket clientSocket = entry.getValue();
-			
-			if (!currentClientId.equals(clientId)) {
-				ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
-				out.writeObject(packageToSend);
-				out.flush();
+
+			if (!clientSocket.equals(senderSocket)) {
+				try {
+					ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
+					out.writeObject(packageToSend);
+					out.flush();
+					System.out.println("📤 Mensaje enviado a " + entry.getKey());
+				} catch (IOException e) {
+					System.out.println("⚠️ Error al enviar el mensaje a " + entry.getKey() + ": " + e.getMessage());
+					disconnectedClients.add(entry.getKey()); // Marcar clientes desconectados
+				}
 			}
+		}
+
+		// Eliminar clientes desconectados
+		for (String client : disconnectedClients) {
+			connectedClients.remove(client);
+			System.out.println("❌ Cliente desconectado: " + client);
 		}
 	}
 }
-
