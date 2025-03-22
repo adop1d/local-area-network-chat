@@ -11,6 +11,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.HashMap;
+import java.util.logging.Logger;
 
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
@@ -25,7 +26,7 @@ import javax.swing.SwingUtilities;
 import org.beast.addpersonalb.utils.actioMur;
 
 public class chatClient extends JFrame {
-	final String userNick;
+	static String userNick;
 
 	public chatClient(String userNick) {
 
@@ -41,6 +42,7 @@ public class chatClient extends JFrame {
 }
 
 class panelFrameClient extends JPanel implements Runnable {
+	private static final Logger logger = Logger.getLogger(panelFrameClient.class.getName());
 	private final String userNick;
 	private HashMap<String, String> userMap;
 
@@ -99,8 +101,17 @@ class panelFrameClient extends JPanel implements Runnable {
 	public void run() {
 		try {
 			Socket clientSocket = new Socket("localhost", 5065); // Conéctate al servidor
-
+			ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
 			ObjectInputStream entryFlow = new ObjectInputStream(clientSocket.getInputStream());
+
+			// a ver si con esto es suficiente
+			shippingDataPackage onlinePackage = new shippingDataPackage();
+			onlinePackage.setNick(userNick);
+			onlinePackage.setMessage("online");
+
+			out.writeObject(onlinePackage);
+			out.flush();
+			System.out.println("Sent online status for: " + userNick);
 
 			while (true) {
 				try {
@@ -123,58 +134,82 @@ class panelFrameClient extends JPanel implements Runnable {
 						}
 					}
 				} catch (ClassNotFoundException e) {
-					System.out.println("Error: " + e.getMessage());
+					System.out.println("Error receiving package: " + e.getMessage());
 				}
 			}
 		} catch (IOException e) {
-			System.out.println("Error: " + e.getMessage());
+			System.out.println(" Error connecting to server: " + e.getMessage());
 		}
+	}
+
+	private boolean processIncomingPackages(ObjectInputStream entryFlow) {
+		try {
+			shippingDataPackage receivedPackage = (shippingDataPackage) entryFlow.readObject();
+
+			if (receivedPackage.getMessage().equals("online")) {
+				HashMap<String, String> receivedUserMap = receivedPackage.getUserMap();
+
+				if (receivedUserMap != null && !receivedUserMap.isEmpty()) {
+					this.userMap.clear();
+					this.userMap.putAll(receivedUserMap);
+
+					SwingUtilities.invokeLater(() -> {
+						ip.removeAllItems();
+						for (String user : userMap.keySet()) {
+							ip.addItem(user);
+						}
+						logger.info("🔄 Updated user list: " + userMap);
+					});
+				}
+			}
+		} catch (ClassNotFoundException | IOException e) {
+			logger.severe("Error receiving package: " + e.getMessage());
+			return false;
+		}
+		return true;
 	}
 
 	private class sendTxt extends Component implements ActionListener {
 		public sendTxt(panelFrameClient panel) {
-			this.panel = panel;
+				this.panel = panel;
 		}
 
 		public void actionPerformed(ActionEvent e) {
-			String selectedUser = (String) panel.ip.getSelectedItem();
-			if (selectedUser != null) {
-				try {
-					String userIp = panel.userMap.get(selectedUser);
-					if (userIp == null) {
-						JOptionPane.showMessageDialog(null, "No se encontró la IP de " + selectedUser);
-						return;
-					}
-					System.out.println("Trying to connect to " + selectedUser + " (" + userIp + ")");
-					Socket ticketDataEntry = new Socket(userIp, 5065);
-					ObjectOutputStream dataPackage = new ObjectOutputStream(ticketDataEntry.getOutputStream());
+				String selectedUser = (String) panel.ip.getSelectedItem();
+				if (selectedUser != null) {
+						try {
+								String userIp = panel.userMap.get(selectedUser);
+								if (userIp == null) {
+										JOptionPane.showMessageDialog(null, "No se encontró la IP de " + selectedUser);
+										return;
+								}
+								logger.info("Trying to connect to " + selectedUser + " (" + userIp + ")");
+								Socket ticketDataEntry = new Socket(userIp, 5065);
+								ObjectOutputStream dataPackage = new ObjectOutputStream(ticketDataEntry.getOutputStream());
 
-					shippingDataPackage dataToSend = new shippingDataPackage();
-					dataToSend.setNick(userNick);
-					dataToSend.setIp(userIp);
-					dataToSend.setMessage(panel.field1.getText());
+								shippingDataPackage dataToSend = new shippingDataPackage();
+								dataToSend.setNick(userNick);
+								dataToSend.setIp(userIp);
+								dataToSend.setMessage(panel.field1.getText());
 
-					dataPackage.writeObject(dataToSend);
-					dataPackage.flush();
-					System.out.println("Sending message: [" + userNick + "]: " + panel.field1.getText());
+								dataPackage.writeObject(dataToSend);
+								dataPackage.flush();
+								logger.info("Sending message: [" + userNick + "]: " + panel.field1.getText());
 
-					panel.chatField.append("\n[" + userNick + "]:" + panel.field1.getText());
+								panel.chatField.append("\n[" + userNick + "]:" + panel.field1.getText());
 
-					// No cerramos el socket inmediatamente
-					// ticketDataEntry.close();
-				} catch (IOException ex) {
-					System.out.println("Error connecting to " + selectedUser + ": " + ex.getMessage());
-					JOptionPane.showMessageDialog(null, "Error connecting to " + selectedUser);
+						} catch (IOException ex) {
+								logger.severe("Error connecting to " + selectedUser + ": " + ex.getMessage());
+								JOptionPane.showMessageDialog(null, "Error connecting to " + selectedUser);
+						}
+				} else {
+						JOptionPane.showMessageDialog(null, "No user selected");
 				}
-			} else {
-				JOptionPane.showMessageDialog(null, "No user selected");
-			}
-			panel.field1.setText("");
+				panel.field1.setText("");
 		}
 
 		private final panelFrameClient panel;
-	}
-
+}
 	private class enterKeyListener implements KeyListener {
 		public enterKeyListener(panelFrameClient panel) {
 			this.panel = panel;
@@ -197,7 +232,7 @@ class panelFrameClient extends JPanel implements Runnable {
 	}
 
 	private final JTextField field1;
-	private final JComboBox ip;
+	private JComboBox<String> ip = new JComboBox<>();
 	private final JLabel nick;
 	private final JTextArea chatField;
 	private final JScrollPane chatFieldScroll;
